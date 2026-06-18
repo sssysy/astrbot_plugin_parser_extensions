@@ -54,11 +54,6 @@ class MessageSender:
         self.cfg = config
         self.renderer = renderer
 
-    def _to_file_uri(self, path: Path) -> str:
-        if not path.is_absolute():
-            path = path.resolve()
-        return path.as_uri()
-
     @staticmethod
     def _image_from_path(path: Path) -> Image:
         return Image.fromFileSystem(str(path))
@@ -69,7 +64,7 @@ class MessageSender:
 
     @staticmethod
     def _record_from_path(path: Path) -> Record:
-        return Record.fromFileSystem(str(path))
+        return Record(file=str(path), url=str(path))
 
     @staticmethod
     def _iter_contents(result: ParseResult):
@@ -207,12 +202,12 @@ class MessageSender:
                     segs.append(self._video_from_path(path))
                 case AudioContent():
                     segs.append(
-                        File(name=path.name, file=self._to_file_uri(path))
+                        File(name=path.name, file=str(path))
                         if self.cfg.audio_to_file
                         else self._record_from_path(path)
                     )
                 case FileContent():
-                    segs.append(File(name=path.name, file=self._to_file_uri(path)))
+                    segs.append(File(name=path.name, file=str(path)))
 
         return segs
 
