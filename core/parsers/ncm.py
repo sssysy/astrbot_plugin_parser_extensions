@@ -304,8 +304,8 @@ class NCMParser(BaseParser):
 
         send_groups = []
         if preview_path and preview_path.exists():
-            send_groups.append(SendGroup(contents=[ImageContent(preview_path)]))
-        send_groups.append(SendGroup(contents=[audio_content]))
+            send_groups.append(SendGroup(contents=[ImageContent(preview_path)], force_merge=False))
+        send_groups.append(SendGroup(contents=[audio_content], force_merge=False, render_card=False))
 
         logger.debug(f"[NCM] _process_song - 构建结果完成, send_groups数量: {len(send_groups)}")
         return self.result(
