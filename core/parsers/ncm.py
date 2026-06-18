@@ -15,7 +15,7 @@ from astrbot.api import logger
 
 from ..config import PluginConfig
 from ..cookie import CookieJar
-from ..data import ImageContent, Platform
+from ..data import AudioContent, ImageContent, Platform, SendGroup
 from ..download import Downloader
 from ..exception import ParseException
 from .base import BaseParser, handle
@@ -300,19 +300,20 @@ class NCMParser(BaseParser):
 
         # 6. 构建结果
         author = self.create_author(artist_name)
-        contents = []
+        audio_content = AudioContent(audio_task, duration_sec)
 
+        send_groups = []
         if preview_path and preview_path.exists():
-            contents.append(ImageContent(preview_path))
+            send_groups.append(SendGroup(contents=[ImageContent(preview_path)]))
+        send_groups.append(SendGroup(contents=[audio_content]))
 
-        contents.append(self.create_audio_content(audio_task, duration=duration_sec))
-
-        logger.debug(f"[NCM] _process_song - 构建结果完成, 内容项数: {len(contents)}")
+        logger.debug(f"[NCM] _process_song - 构建结果完成, send_groups数量: {len(send_groups)}")
         return self.result(
             title=f"{song_name} - {artist_name}",
             text=f"音质: {target_level}",
             author=author,
-            contents=contents,
+            contents=[audio_content],
+            send_groups=send_groups,
             url=f"https://music.163.com/#/song?id={song_id}",
         )
 
