@@ -460,9 +460,39 @@
                     },
                     "cookies": {
                         "description": "Cookies",
-                        "hint": "选填",
+                        "hint": "选填。登录后可自动填充，也可手动填写",
                         "type": "text",
                         "default": ""
+                    },
+                    "base_url": {
+                        "description": "API 地址",
+                        "hint": "必填。NodeJS 网易云音乐 API 的服务地址，如 http://localhost:3000",
+                        "type": "string",
+                        "default": "http://localhost:3000"
+                    },
+                    "quality": {
+                        "description": "默认音质",
+                        "hint": "下载歌曲的默认音质等级。若所选音质不可用会自动降级到最高可用音质",
+                        "type": "string",
+                        "options": [
+                            "standard",
+                            "higher",
+                            "exhigh",
+                            "lossless",
+                            "hires",
+                            "jyeffect",
+                            "jymaster"
+                        ],
+                        "labels": [
+                            "标准",
+                            "较高",
+                            "极高",
+                            "无损",
+                            "Hi-Res",
+                            "高清环绕声",
+                            "沉浸环绕声"
+                        ],
+                        "default": "exhigh"
                     }
                 }
             },
