@@ -256,7 +256,8 @@ class NCMParser(BaseParser):
         url_info = await self._get_song_url(song_id, target_level)
         audio_url = url_info.get("url", "")
         file_size = url_info.get("size", 0)
-        logger.debug(f"[NCM] _process_song - 首次获取URL: url={'有' if audio_url else '无'}, size={file_size}, level={target_level}")
+        audio_type = url_info.get("type", "mp3")
+        logger.debug(f"[NCM] _process_song - 首次获取URL: url={'有' if audio_url else '无'}, size={file_size}, level={target_level}, type={audio_type}")
 
         # 降级重试
         if not audio_url:
@@ -270,13 +271,14 @@ class NCMParser(BaseParser):
                 if audio_url:
                     target_level = fb
                     file_size = url_info.get("size", 0)
+                    audio_type = url_info.get("type", "mp3")
                     break
 
         if not audio_url:
             logger.debug(f"[NCM] _process_song - 所有音质均无可用URL")
             raise ParseException("该歌曲暂无可用播放地址")
 
-        logger.debug(f"[NCM] _process_song - 最终: level={target_level}, size={file_size}")
+        logger.debug(f"[NCM] _process_song - 最终: level={target_level}, size={file_size}, type={audio_type}")
 
         # 4. 生成预览图
         preview_path = await self._generate_preview(
@@ -290,13 +292,15 @@ class NCMParser(BaseParser):
         logger.debug(f"[NCM] _process_song - 预览图: {'成功' if preview_path else '失败'}")
 
         # 5. 下载音频
+        ext = f".{audio_type}"
+        audio_name = f"{song_name} - {artist_name}{ext}"
         audio_task = self.downloader.download_audio(
             audio_url,
-            audio_name=f"{song_name} - {artist_name}.mp3",
+            audio_name=audio_name,
             headers=self.headers,
             proxy=self.proxy,
         )
-        logger.debug(f"[NCM] _process_song - 音频下载任务已创建: {f'{song_name} - {artist_name}.mp3'}")
+        logger.debug(f"[NCM] _process_song - 音频下载任务已创建: {audio_name}")
 
         # 6. 构建结果
         author = self.create_author(artist_name)
