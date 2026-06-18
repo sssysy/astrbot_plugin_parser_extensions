@@ -18,7 +18,7 @@ from .core.clean import CacheCleaner
 from .core.config import PluginConfig
 from .core.debounce import Debouncer
 from .core.download import Downloader
-from .core.parsers import BaseParser, BilibiliParser
+from .core.parsers import BaseParser, BilibiliParser, NCMParser
 from .core.render import Renderer
 from .core.sender import MessageSender
 from .core.utils import extract_json_url
@@ -220,4 +220,14 @@ class ParserPlugin(Star):
         qrcode = await parser.login.login_with_qrcode()
         yield event.chain_result([Image.fromBytes(qrcode)])
         async for msg in parser.login.check_qr_state():
+            yield event.plain_result(msg)
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("登录网易云", alias={"nlogin", "wylogin"})
+    async def login_ncm(self, event: AstrMessageEvent):
+        """扫码登录网易云音乐"""
+        parser: NCMParser = self._get_parser_by_type(NCMParser)  # type: ignore
+        qrcode = await parser.login_with_qrcode()
+        yield event.chain_result([Image.fromBytes(qrcode)])
+        async for msg in parser.check_qr_state():
             yield event.plain_result(msg)
