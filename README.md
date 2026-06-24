@@ -10,7 +10,8 @@ _✨ 链接解析器 ✨_
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![AstrBot](https://img.shields.io/badge/AstrBot-3.4%2B-orange.svg)](https://github.com/Soulter/AstrBot)
-[![GitHub](https://img.shields.io/badge/作者-Zhalslar-blue)](https://github.com/Zhalslar)
+[![GitHub](https://img.shields.io/badge/原作者-Zhalslar-blue)](https://github.com/Zhalslar)
+[![GitHub](https://img.shields.io/badge/修改-sssysy-cyan)](https://github.com/sssysy)
 
 </div>
 
@@ -35,9 +36,13 @@ _✨ 链接解析器 ✨_
 |网易云   |链接/卡片                          | ❌️   | ❌️  | ✅​  |
 
 打算支持：
-| 平台    | 触发的消息形态                    | 视频 | 图集 | 音频 |
+| 平台    | 触发的消息形态                    | 视频           | 图集         | 音频       |
 |---|----|---|----|---|
-|网易云   |链接/卡片                          | ✅​   | ❌️  | 已支持​  |
+|网易云   |链接 / 卡片                        | ✅​           | ❌️          | 已支持​      |
+|磁力链接 |链接(magnet:?...)                 | 仅解析元数据​   | 仅解析元数据​  | 仅解析元数据​  |
+|iwara  |链接 / 视频id                       |  ✅​           | ❌️          | ❌️        |
+|pixiv  |链接 / pid                         |  ✅​           | ✅​          | ❌️        |
+|禁漫天堂 |禁漫号                             |  ​ ❌️          | ✅​          | ❌️        |
 
 本插件目标：凡是链接皆可解析！尽请期待更新（如果可以,请提交PR）
 
@@ -66,6 +71,7 @@ _✨ 链接解析器 ✨_
 ## ⚙️ 配置
 
 请在astrbot的插件配置面板查看并修改
+> 网易云需要 **本地部署** 或使用 **其他公开(因安全问题不推荐)** 的 nodejs 版 api，部署方式详见项目：[NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)
 
 ## 🎉 指令
 
@@ -74,6 +80,7 @@ _✨ 链接解析器 ✨_
 | 开启解析 |      ADMIN            |     开启当前会话的解析功能      |
 | 关闭解析 |      ADMIN            |    关闭当前会话的解析功能      |
 |  blogin  |      ADMIN           |   扫码获取 B 站凭证 |
+|  网易云登录  |      ADMIN           |   扫码获取网易云Cookie |
 
 ---
 
@@ -127,10 +134,12 @@ _✨ 链接解析器 ✨_
 
 插件支持自定义解析器，通过继承 `BaseParser` 类并实现 `platform`, `handle` 即可。
 
-示例解析器请看 [示例解析器](https://github.com/Zhalslar/astrbot_plugin_parser/blob/main/core/parsers/example.py)
+示例解析器请看 [示例解析器](https://github.com/sssysy/astrbot_plugin_parser/blob/main/core/parsers/example.py)
 
 ---
 
 ## 🎉 致谢
 
 本项目核心代码来自[nonebot-plugin-parser](https://github.com/fllesser/nonebot-plugin-parser)，请前往原仓库给作者点个Star!
+本项目Fork自[astrbot_plugin_parser](https://github.com/Zhalslar/astrbot_plugin_parser)，请前往原仓库给作者点个Star!
+本项目网易云接口来自[NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)，请前往原仓库给作者点个Star!
