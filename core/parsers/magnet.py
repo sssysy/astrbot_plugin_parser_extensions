@@ -106,7 +106,7 @@ class MagnetParser(BaseParser):
 
     @handle("magnet", r"magnet:\?[^\s]+")
     async def _parse_magnet(self, searched: Match[str]):
-        magnet = searched.string
+        magnet = searched.group(0)
         data = await self._parseprocess(magnet)
 
         # 解析磁力链接数据
@@ -116,18 +116,16 @@ class MagnetParser(BaseParser):
         size_convert = MagnetUtils.fmt_size(size)
         
         #解析预览图片列表
-        preview_json = data.get("screenshots", [{"screenshot": ""}])
-        img_urls = []
-        for preview in preview_json:
-            img_urls.append(preview.get("screenshot"))
+        preview_json = data.get("screenshots", [])
+        img_urls = [
+            p.get("screenshot") for p in preview_json if p.get("screenshot")
+        ]
         send_text = f"标题：{title}\n\n磁链类型：{file_type}\n\n文件大小：{size_convert}"
         send_type = self.mycfg.image_send_mode
-        if send_type == "blur":
+        if img_urls and send_type == "blur":
             return await self.send_with_blur(img_urls, send_text)
-        elif send_type == "original":
+        elif img_urls and send_type == "original":
             return await self.send_with_original(img_urls, send_text)
-        elif send_type == "none":
-            return await self.send_without_img(send_text)
         else:
             return await self.send_without_img(send_text)
         
