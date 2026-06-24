@@ -516,6 +516,43 @@
                         "default": ""
                     }
                 }
+            },
+            "magnet": {
+                "name": "磁力解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "image_send_mode": {
+                        "description": "图片发送方式",
+                        "hint": "磁力链接解析到的预览图片的发送方式",
+                        "type": "string",
+                        "options": [
+                            "none",
+                            "blur",
+                            "original"
+                        ],
+                        "labels": [
+                            "不发送",
+                            "打码发送",
+                            "原图发送"
+                        ],
+                        "default": "original"
+                    }
+                }
             }
         }
     }

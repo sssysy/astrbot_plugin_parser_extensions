@@ -159,6 +159,7 @@ class ParserItem(ConfigNode):
     video_send_mode: str | None
     video_codec_list: list | None
     video_quality: str | None
+    image_send_mode: str | None
 
     @property
     def name(self) -> str:
@@ -171,6 +172,7 @@ class ParserConfig(ConfigNodeContainer):
     douyin: ParserItem
     instagram: ParserItem
     kuaishou: ParserItem
+    magnet: ParserItem
     ncm: ParserItem
     nga: ParserItem
     tiktok: ParserItem
