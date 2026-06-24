@@ -1,11 +1,11 @@
 
 <div align="center">
 
-![:name](https://count.getloli.com/@astrbot_plugin_parser?name=astrbot_plugin_parser&theme=minecraft&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
+<img src="https://raw.githubusercontent.com/sssysy/astrbot_plugin_parser_netease/main/logo.gif" width="300" />
 
-# astrbot_plugin_parser
+# astrbot_plugin_parser_extension
 
-_✨ 链接解析器 ✨_  
+_✨ 链接解析器(扩展版) ✨_  
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
