@@ -13,6 +13,7 @@ from .xhs import XHSParser
 from .xiaoheihe import XiaoheiheParser
 from .youtube import YouTubeParser
 from .zhihu import ZhihuParser
+from .magnet import MagnetParser
 
 __all__ = [
     "BaseParser",
@@ -22,6 +23,7 @@ __all__ = [
     "InstagramParser",
     "KuaiShouParser",
     "NCMParser",
+    "MagnetParser",
     "NGAParser",
     "TikTokParser",
     "TwitterParser",

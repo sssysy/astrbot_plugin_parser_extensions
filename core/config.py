@@ -171,6 +171,7 @@ class ParserConfig(ConfigNodeContainer):
     douyin: ParserItem
     instagram: ParserItem
     kuaishou: ParserItem
+    magnet: ParserItem
     ncm: ParserItem
     nga: ParserItem
     tiktok: ParserItem
