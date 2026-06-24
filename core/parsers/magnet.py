@@ -78,12 +78,12 @@ class MagnetParser(BaseParser):
                 url=img_url, headers=self.headers, proxy=self.proxy
             )
             #增加高斯模糊
-            MagnetUtils.gaussian_blur(img_path)
-            blurred_paths.append(img_path)
+            MagnetUtils.gaussian_blur(img_path, Path(f"{img_path}_blur.jpg"))
+            blurred_paths.append(Path(f"{img_path}_blur.jpg"))
         return self.result(
             contents = [
                 TextContent(text),
-                ImageContent(blurred_paths[0]) # 暂时只发第一张预览图，后面再写
+                *[ImageContent(p) for p in blurred_paths]
                 ]
         )
 
