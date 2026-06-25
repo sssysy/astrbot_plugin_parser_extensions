@@ -1,8 +1,8 @@
-name: astrbot_plugin_parser_netease
-display_name: 万能解析器(网易云修复版)
-desc: 链接解析器。支持：A站、B站、抖音、tiktok、微博、小红书、快手、油管、X、网易云...
+name: astrbot_plugin_parser_extensions
+display_name: 万能解析器(扩展版)
+desc: 链接解析器。支持：A站、B站、抖音、tiktok、微博、小红书、快手、油管、X、网易云、磁力、iwara
 help: 略
 version: v1.5.4
 author: Zhalslar & sssysy
-repo: https://github.com/sssysy/astrbot_plugin_parser_netease
+repo: https://github.com/sssysy/astrbot_plugin_parser_extensions
 
