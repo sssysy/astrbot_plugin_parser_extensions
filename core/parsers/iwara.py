@@ -8,7 +8,7 @@ from PIL import Image, ImageFilter
 from pathlib import Path
 
 from ..config import PluginConfig
-from ..data import ParseResult, Platform, VideoContent
+from ..data import ParseResult, Platform, VideoContent, ImageContent, TextContent
 from ..download import Downloader
 from .base import BaseParser, handle
 from ..exception import ParseException
@@ -55,7 +55,7 @@ class api:
                 response = await client.get(url, headers=headers, proxy=api.proxy)
                 return response.json()
             except Exception as e:
-                raise ParseException(f"获取iwara信息失败：{e}")
+                raise ParseException(f"获取iwara视频信息失败：{e}")
     
     @staticmethod
     async def fileURL_get_urlInfo(fileURL: str) -> dict:
@@ -118,7 +118,7 @@ class api:
 
 
     @staticmethod
-    def _blur(image_path: str | Path, output_path: str | Path | None = None, radius: int = 15) -> Path:
+    def _blur(image_path: str | Path, output_path: str | Path | None = None, radius: int = 20) -> Path:
         """对图片施加全局高斯模糊
 
         Args:
@@ -135,6 +135,27 @@ class api:
             blurred = img.filter(ImageFilter.GaussianBlur(radius=radius))
             blurred.save(output_path)
         return output_path
+    
+    @staticmethod
+    async def IMG_iwaraID_Get_imageInfo(image_id: str) -> dict:
+        """根据image_id获取图片信息"""
+        url = f"https://api.iwara.tv/image/{image_id}"
+        headers = {
+            "accept": "application/json",
+            "origin": "https://www.iwara.tv",
+            "referer": "https://www.iwara.tv/",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0",
+            "cookie": api.cookie,
+        }
+        async with curl_requests.AsyncSession(
+            timeout=10.0,
+            impersonate=_IMPERSONATE,
+        ) as client:
+            try:
+                response = await client.get(url, headers=headers, proxy=api.proxy)
+                return response.json()
+            except Exception as e:
+                raise ParseException(f"获取iwara图片信息失败：{e}")
     
 
 
@@ -167,7 +188,7 @@ class IwaraParser(BaseParser):
         video_duration = video_info["file"]["duration"]
         user_avatar = video_info["user"]["avatar"]
         r18 = video_info["rating"]
-        video_user_avatar = (
+        video_user_avatar_imgurl = (
             f"https://i.iwara.tv/image/avatar/{user_avatar['id']}/{user_avatar['name']}" # 获取用户头像
             if user_avatar
             else "https://www.iwara.tv/images/default-avatar.jpg" # iwara 默认头像
@@ -198,10 +219,9 @@ class IwaraParser(BaseParser):
             duration = video_duration,
             )
 
-
         author = self.create_author(
             name=f"{video_user} ({video_user_username})",
-            avatar_url=video_user_avatar,
+            avatar_url=video_user_avatar_imgurl,
         )
         return self.result(
             title = video_title,
@@ -210,4 +230,70 @@ class IwaraParser(BaseParser):
             timestamp=timestamp,
             contents=[video_contents],
             url=f"https://www.iwara.tv/video/{video_id}"
+        )
+    
+    @handle("iwara.tv", r"iwara\.tv/image/(?P<image_id>\w+)")
+    async def _parse_image(self, searched: Match[str]) -> ParseResult:
+        image_id = searched.group("image_id")
+        image_info = await api.IMG_iwaraID_Get_imageInfo(image_id)
+
+        # 图片元数据
+        image_title = image_info["title"]
+        image_body = image_info["body"]
+        image_rating = image_info["rating"]
+        image_tags = [tag["id"] for tag in image_info["tags"]]
+
+        # R18判断
+        if image_rating == "ecchi" and self.mycfg.nsfw == "ignore":
+            return self.result(
+                title=image_title,
+                extra={"info": f"⚠ 该图片为 R18 内容，已按配置忽略"},
+                url=f"https://www.iwara.tv/image/{image_id}",
+            )
+        
+        # 提取图片URL列表
+        image_urls = []
+        if image_rating == "ecchi" and self.mycfg.nsfw == "blur": # R18且模糊时下载压缩后的图片，省流量
+            for img_item in image_info["files"]:
+                name = Path(img_item['name']).with_suffix('.jpg').name
+                img_url = f"https://i.iwara.tv/image/large/{img_item['id']}/{name}"
+                image_urls.append(img_url)
+        else:
+            for img_item in image_info["files"]:
+                img_url = f"https://i.iwara.tv/image/original/{img_item['id']}/{img_item['name']}"
+                image_urls.append(img_url)
+
+        # 作者信息
+        user_name = image_info["user"]["name"]
+        user_username = image_info["user"]["username"]
+        user_avatar = image_info["user"]["avatar"]
+        user_avatar_imgurl = (
+            f"https://i.iwara.tv/image/avatar/{user_avatar['id']}/{user_avatar['name']}" # 获取用户头像
+            if user_avatar
+            else "https://www.iwara.tv/images/default-avatar.jpg" # iwara 默认头像
+        )
+
+        # 构建发送信息
+        text = TextContent(
+            text=f"标题: {image_title}\n作者：{user_name} ({user_username})\n图片描述: {image_body}\nTAG: {', '.join(f'#{tag}' for tag in image_tags) if image_tags else '无'}"
+        )
+
+        image_contents = []
+        for img_url in image_urls:
+            img_path = await self.downloader.download_img(img_url, proxy=self.proxy)
+            img = api.auto_blur_video_thumbnail(img_path, image_rating, self.mycfg.nsfw or "blur")
+            if img:
+                image_contents.append(ImageContent(
+                    path_task = img,
+                ))
+
+        author = self.create_author(
+            name=f"{user_name} ({user_username})",
+            avatar_url=user_avatar_imgurl,
+        )
+        return self.result(
+            title = image_title,
+            author = author,
+            contents = [text, *image_contents],
+            url=f"https://www.iwara.tv/image/{image_id}"
         )
