@@ -14,6 +14,7 @@ from .xiaoheihe import XiaoheiheParser
 from .youtube import YouTubeParser
 from .zhihu import ZhihuParser
 from .magnet import MagnetParser
+from .iwara import IwaraParser
 
 __all__ = [
     "BaseParser",
@@ -32,4 +33,5 @@ __all__ = [
     "XHSParser",
     "YouTubeParser",
     "ZhihuParser",
+    "IwaraParser",
 ]

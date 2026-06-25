@@ -160,6 +160,7 @@ class ParserItem(ConfigNode):
     video_codec_list: list | None
     video_quality: str | None
     image_send_mode: str | None
+    nsfw: str | None
 
     @property
     def name(self) -> str:
@@ -182,6 +183,7 @@ class ParserConfig(ConfigNodeContainer):
     zhihu: ParserItem
     xhs: ParserItem
     youtube: ParserItem
+    iwara: ParserItem
 
     def __init__(self, nodes: list[dict[str, Any]]):
         super().__init__(nodes, item_cls=ParserItem)
