@@ -171,7 +171,7 @@ class IwaraParser(BaseParser):
         api.cookie = self.mycfg.cookies if self.mycfg.cookies else ""
         api.proxy = self.proxy
         
-    @handle("iwara.tv", r"iwara\.tv/video/(?P<video_id>\w+)")
+    @handle("iwara.tv/video", r"iwara\.tv/video/(?P<video_id>\w+)")
     async def _parse(self, searched: Match[str]) -> ParseResult:
         video_id = searched.group("video_id")
         video_info = await api.iwaraID_Get_videoInfo(video_id)
@@ -232,7 +232,7 @@ class IwaraParser(BaseParser):
             url=f"https://www.iwara.tv/video/{video_id}"
         )
     
-    @handle("iwara.tv", r"iwara\.tv/image/(?P<image_id>\w+)")
+    @handle("iwara.tv/image", r"iwara\.tv/image/(?P<image_id>\w+)")
     async def _parse_image(self, searched: Match[str]) -> ParseResult:
         image_id = searched.group("image_id")
         image_info = await api.IMG_iwaraID_Get_imageInfo(image_id)
