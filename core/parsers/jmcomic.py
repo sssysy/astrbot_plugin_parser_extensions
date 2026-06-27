@@ -74,9 +74,7 @@ class JMComicParser(BaseParser):
         photos = list(photo_detail)
         urls = [p.img_url for p in photos]
 
-        downloaded_paths = await asyncio.gather(*(
-            self.downloader.download_img(u, proxy=self.proxy) for u in urls
-        ))
+        downloaded_paths = await self.downloader.download_imgs_concurrent(urls, proxy=self.proxy)
 
         return [
             self.decode_img(p.img_url, p.scramble_id, path) # 解密图片
