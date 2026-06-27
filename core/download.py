@@ -1,4 +1,4 @@
-from asyncio import Task, TimeoutError, create_task, gather, sleep, to_thread
+from asyncio import Semaphore, Task, TimeoutError, create_task, gather, sleep, to_thread
 from collections.abc import Callable, Coroutine
 from functools import wraps
 from pathlib import Path
@@ -241,6 +241,28 @@ class Downloader:
             return_exceptions=True,
         )
         return [p for p in paths_or_errs if isinstance(p, Path)]
+
+    async def download_imgs_concurrent(
+        self,
+        img_urls: list[str],
+        concurrency: int = 8,
+        *,
+        headers: dict[str, str] | None = None,
+        proxy: str | None | object = ...,
+    ) -> list[Path | None]:
+        """并发下载图片，按输入顺序返回本地路径，失败位置为 None"""
+        sem = Semaphore(concurrency)
+
+        async def _download(url: str) -> Path | None:
+            async with sem:
+                try:
+                    return await self.download_img(url, headers=headers, proxy=proxy)
+                except Exception as e:
+                    logger.error(f"下载图片失败 | url: {url}, error: {e}")
+                    return None
+
+        results = await gather(*(_download(url) for url in img_urls))
+        return list(results)
 
     @auto_task
     async def download_av_and_merge(
