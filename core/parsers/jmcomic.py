@@ -92,10 +92,10 @@ class JMComicParser(BaseParser):
     
     @handle("18comic.vip/photo", r"18comic.vip/photo/(?P<comic_id>\d{5,})")
     @handle("18comic.vip/album", r"18comic.vip/album/(?P<comic_id>\d{5,})")
-    @handle("jm", r"jm(?P<comic_id>\d{5,})")
+    @handle("jm", r"jm(?P<comic_id>\d+)")
     async def _parse(self, searched: Match[str]) -> ParseResult:
         """解析漫画"""
-        comic_id = searched.group("comic_id")
+        comic_id = searched.group("comic_id").lstrip("0")
 
         # 获取漫画详情信息
         async with JmOption.default().new_jm_async_client() as JMClient:
@@ -156,29 +156,32 @@ class JMComicParser(BaseParser):
             # 发送处理
             send_mode = self.mycfg.image_send_mode
             if send_mode != "ignore":
-                img_paths = asyncio.create_task(self._download_all_photo(photo_detail))
+                urls = [p.img_url for p in list(photo_detail)]
 
-                if send_mode == "pdf": 
-                    pdf_task = asyncio.create_task(self._build_pdf(img_paths, comic_id))
-                    send_groups.append(SendGroup( # 构造pdf
-                        contents=[FileContent(pdf_task)],
-                        render_card = False,
-                        force_merge = False,
-                    ))
-
-                elif send_mode == "merge":
-                    img_contents: list[MediaContent] = []
-                    for img in await img_paths:
-                        img_contents.append(ImageContent(img))
-                    send_groups.append(SendGroup( # 构造图片
-                        contents=img_contents,
-                        render_card = False,
-                        force_merge = True,
-                    ))
+                if self.mycfg.max_page and len(urls) > self.mycfg.max_page:
+                    extra_info = f"\n当前漫画页数 {len(urls)}，超过最大页数 {self.mycfg.max_page}，跳过解析。"
                 
-
-
-
+                else:
+                    img_paths = asyncio.create_task(self._download_all_photo(photo_detail))
+                    # PDF模式
+                    if send_mode == "pdf": 
+                        pdf_task = asyncio.create_task(self._build_pdf(img_paths, comic_id))
+                        send_groups.append(SendGroup( # 构造pdf
+                            contents=[FileContent(pdf_task)],
+                            render_card = False,
+                            force_merge = False,
+                        ))
+                    # 合并转发
+                    elif send_mode == "merge":
+                        img_contents: list[MediaContent] = []
+                        for img in await img_paths:
+                            img_contents.append(ImageContent(img))
+                        send_groups.append(SendGroup( # 构造图片
+                            contents=img_contents,
+                            render_card = False,
+                            force_merge = True,
+                        ))
+                
 
             return self.result(
                 title = album_oname,

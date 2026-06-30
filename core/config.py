@@ -161,6 +161,7 @@ class ParserItem(ConfigNode):
     video_quality: str | None
     image_send_mode: str | None
     nsfw: str | None
+    max_page: int | None
 
     @property
     def name(self) -> str:
