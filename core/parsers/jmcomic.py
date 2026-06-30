@@ -96,7 +96,9 @@ class JMComicParser(BaseParser):
     async def _parse(self, searched: Match[str]) -> ParseResult:
         """解析漫画"""
         comic_id = searched.group("comic_id").lstrip("0")
-
+        if not comic_id:
+            return self.result(extra={"info": "JM 号不能为空"})
+        
         # 获取漫画详情信息
         async with JmOption.default().new_jm_async_client() as JMClient:
             # 请求详情
