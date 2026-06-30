@@ -650,6 +650,12 @@
                             "忽略"
                         ],
                         "default": "blur"
+                    },
+                    "max_page": {
+                        "description": "最大页数",
+                        "hint": "发送漫画时接受的最大页数，超过则跳过下载发送。0则不限制",
+                        "type": "int",
+                        "default": 50
                     }
                 }
             }
