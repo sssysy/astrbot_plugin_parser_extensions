@@ -1,0 +1,39 @@
+[
+  {
+    "__template_key": "telegram",
+    "enable": true,
+    "use_proxy": false,
+    "api_id": 2040,
+    "api_hash": "b18441a1ff607e10a989891a5462e627"
+  },
+  {
+    "__template_key": "magnet",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "image_send_mode": "original"
+  },
+  {
+    "__template_key": "jmcomic",
+    "enable": true,
+    "use_proxy": false,
+    "image_send_mode": "pdf",
+    "nsfw": "blur",
+    "max_page": 50
+  },
+  {
+    "__template_key": "ncm",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "base_url": "http://localhost:3000",
+    "quality": "exhigh"
+  },
+  {
+    "__template_key": "xhs",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "parse_original_image": false
+  }
+]
