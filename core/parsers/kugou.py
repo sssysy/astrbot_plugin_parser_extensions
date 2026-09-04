@@ -66,6 +66,10 @@ class KuGouParser(BaseParser):
     @handle("t3.kugou.com", r"t3\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
     @handle("t4.kugou.com", r"t4\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
     @handle("t5.kugou.com", r"t5\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
+    @handle("t6.kugou.com", r"t6\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
+    @handle("t7.kugou.com", r"t7\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
+    @handle("t8.kugou.com", r"t8\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
+    @handle("t9.kugou.com", r"t9\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
     @handle("t.kugou.com", r"t\.kugou\.com/(?P<key>[a-zA-Z0-9]+)")
     async def _parse_short(self, searched: Match[str]):
         matched = searched.group(0)
@@ -73,25 +77,44 @@ class KuGouParser(BaseParser):
         return await self.parse_with_redirect(full_url)
 
     # 2. 移动端分享链重定向
-    @handle("m.kugou.com/share", r"m\.kugou\.com/share/\?chain=(?P<chain>[a-zA-Z0-9]+)")
+    @handle("m.kugou.com/share", r"(?i)m\.kugou\.com/share/?.*[?&]chain=(?P<chain>[a-zA-Z0-9]+)")
+    @handle("h5.kugou.com/share", r"(?i)h5\.kugou\.com/share/?.*[?&]chain=(?P<chain>[a-zA-Z0-9]+)")
+    @handle("kugou.com/share", r"(?i)kugou\.com/share/?.*[?&]chain=(?P<chain>[a-zA-Z0-9]+)")
     async def _parse_share(self, searched: Match[str]):
         chain = searched.group("chain")
         return await self.parse_with_redirect(f"https://m.kugou.com/share/?chain={chain}")
 
-    # 3. 电脑/网页端单曲播放页（URL 中含有 hash）
-    @handle("kugou.com/song", r"kugou\.com/song/(?:index\.php)?.*[#?&]hash=(?P<hash>[a-fA-F0-9]{32})")
+    # 3. 电脑/网页端/H5单曲播放页（URL 中含有 hash 或歌曲 ID）
+    @handle("kugou.com/song", r"(?i)kugou\.com/song/?(?:index\.php)?.*[#?&](?:hash|file_?hash|song_?hash)=(?P<hash>[a-f0-9]{32})")
+    @handle("h5.kugou.com", r"(?i)h5\.kugou\.com/.*[#?&](?:hash|file_?hash|song_?hash|album_audio_id|mix_?song_?id|audio_id)=(?P<key>[a-zA-Z0-9]+)")
     async def _parse_song_hash(self, searched: Match[str]):
-        hash_val = searched.group("hash").lower()
+        # 1. 尝试从 URL 中直接提取 32 位 hash
+        hash_val = ""
+        if hash_m := re.search(r"(?i)(?:hash|file_?hash|song_?hash)=([a-f0-9]{32})", searched.string):
+            hash_val = hash_m.group(1).lower()
+
+        # 2. 尝试提取 album_id 与 album_audio_id
         album_id = 0
         if album_m := re.search(r"album_id=(\d+)", searched.string):
             album_id = int(album_m.group(1))
+
         album_audio_id = 0
-        if aaid_m := re.search(r"(?:album_audio_id|mixsongid)=(\d+)", searched.string, re.IGNORECASE):
+        if aaid_m := re.search(r"(?i)(?:album_audio_id|mix_?song_?id|audio_id)=(\d+)", searched.string):
             album_audio_id = int(aaid_m.group(1))
+
+        # 3. 若无 hash 但有 album_audio_id，通过 /krm/audio 查询 hash
+        if not hash_val and album_audio_id > 0:
+            krm_info = await self._get_krm_audio(album_audio_id)
+            hash_val = krm_info.get("hash", "").lower()
+
+        if not hash_val:
+            raise ParseException("未能从酷狗链接中提取到歌曲哈希 (hash)")
+
         return await self._process_song(hash_val, album_id=album_id, album_audio_id=album_audio_id)
 
     # 4. 手机端播放页
     @handle("m.kugou.com/play/info", r"m\.kugou\.com/play/info/(?P<hash>[a-fA-F0-9]{32})")
+    @handle("h5.kugou.com/play/info", r"h5\.kugou\.com/play/info/(?P<hash>[a-fA-F0-9]{32})")
     async def _parse_play_info(self, searched: Match[str]):
         hash_val = searched.group("hash").lower()
         return await self._process_song(hash_val)
@@ -336,6 +359,8 @@ class KuGouParser(BaseParser):
         """处理单曲解析"""
         # 1. 获取歌曲详情
         detail = await self._get_song_detail(hash_val)
+        if not detail and album_audio_id > 0:
+            detail = await self._get_krm_audio(album_audio_id)
 
         audio_name = detail.get("audio_name") or ""
         song_name = detail.get("song_name") or detail.get("songname") or ""
