@@ -43,6 +43,7 @@ class ParserConfig(ConfigNodeContainer):
     jmcomic: ParserItem
     ncm: ParserItem
     xhs: ParserItem
+    kugou: ParserItem
 
     def __init__(self, nodes: list[dict[str, Any]]):
         super().__init__(nodes, item_cls=ParserItem)

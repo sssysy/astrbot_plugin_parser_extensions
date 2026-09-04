@@ -29,6 +29,7 @@ _✨ 万能解析器 (扩展包) ✨_
 | 磁力链接   | 链接(magnet:?)                    | ❌️  | ✅​  | ❌️  |
 | JMComic    | 链接(含短链) / jm 号               | ❌️  | ✅​  | ❌️  |
 | 网易云音乐 (修复) | 链接(单曲链接/短链)               | ❌️  | ✅​  | ✅​  |
+| 酷狗音乐   | 链接(单曲链接/短链/mixsong)       | ❌️  | ✅​  | ✅​  |
 | 小红书 (增强)  | 链接(含短链)/卡片                 | ✅​  | ✅​  | ❌️  |
 
 ---
@@ -36,7 +37,7 @@ _✨ 万能解析器 (扩展包) ✨_
 ## ⚙️ 配置说明
 
 在 AstrBot 插件管理面板中配置本插件：
-- **扩展解析器列表**：通过追加插件设置来添加追加解析器
+- **扩展解析器列表**：通过追加插件设置来添加追加解析器（酷狗音乐 API 默认使用 `http://localhost:3000`）
 - 全局代理、白名单、黑名单、防抖秒数等全局通用设置直接在原插件（astrbot_plugin_parser）面板配置即可，本插件自动遵从。
 
 ---
@@ -46,6 +47,8 @@ _✨ 万能解析器 (扩展包) ✨_
 | 指令 | 别名 | 权限 | 说明 |
 | :---: | :---: | :---: | :---: |
 | `登录网易云` | `nlogin`, `wylogin` | ADMIN | 弹出二维码扫码登录网易云音乐 |
+| `登录酷狗` | `kglogin`, `酷狗登录` | ADMIN | 弹出二维码扫码登录酷狗音乐 |
+| `酷狗领取vip` | `kgvip`, `酷狗vip`, `领取酷狗vip` | ADMIN | 手动领取酷狗概念版当天 1 天 VIP 并自动升级畅听 VIP |
 | `登录Telegram` | `tglogin`, `登录tg` | ADMIN | 弹出二维码扫码登录 Telegram；支持 `tglogin 2fa <密码>` |
 | `ext重载` | `ext_reload` | ADMIN | 手动触发重新注入扩展解析器到原插件中 |
 
@@ -57,3 +60,4 @@ _✨ 万能解析器 (扩展包) ✨_
 
 - [Zhalslar/astrbot_plugin_parser](https://github.com/Zhalslar/astrbot_plugin_parser)
 - [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)
+- [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)

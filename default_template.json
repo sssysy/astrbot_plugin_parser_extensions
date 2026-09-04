@@ -35,5 +35,13 @@
     "use_proxy": false,
     "cookies": "",
     "parse_original_image": false
+  },
+  {
+    "__template_key": "kugou",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "base_url": "http://localhost:3000",
+    "quality": "320"
   }
 ]

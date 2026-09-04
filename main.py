@@ -17,6 +17,7 @@ from .core.config import PluginConfig
 from .core.parsers import (
     BaseParser,
     JMComicParser,
+    KuGouParser,
     MagnetParser,
     NCMParser,
     TelegramParser,
@@ -31,6 +32,7 @@ PARSER_CLASSES: dict[str, type[BaseParser]] = {
     "jmcomic": JMComicParser,
     "ncm": NCMParser,
     "xhs": XHSParser,
+    "kugou": KuGouParser,
 }
 
 MISSING_DEP_MSG = "本插件强依赖 astrbot_plugin_parser，未检测到依赖插件，请先在插件市场安装！"
@@ -230,3 +232,43 @@ class ParserPlugin(Star):
         yield event.chain_result([Image.fromBytes(qr_png)])
         async for msg in parser.login.wait_qr_login():
             yield event.plain_result(msg)
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("登录酷狗", alias={"kglogin", "酷狗登录"})
+    async def login_kugou(self, event: AstrMessageEvent):
+        """扫码登录酷狗音乐"""
+        if not self.is_ready:
+            yield event.plain_result(MISSING_DEP_MSG)
+            return
+        try:
+            parser: KuGouParser = self._get_parser_by_type(KuGouParser)
+        except ValueError:
+            yield event.plain_result("酷狗音乐扩展解析器未启用，请在插件配置中开启。")
+            return
+
+        try:
+            qrcode = await parser.login_with_qrcode()
+        except Exception as e:
+            yield event.plain_result(f"获取酷狗登录二维码失败: {e}")
+            return
+
+        yield event.chain_result([Image.fromBytes(qrcode)])
+        async for msg in parser.check_qr_state():
+            yield event.plain_result(msg)
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("酷狗领取vip", alias={"kgvip", "酷狗vip", "领取酷狗vip"})
+    async def claim_kugou_vip(self, event: AstrMessageEvent):
+        """手动领取酷狗概念版 1 天 VIP 并自动升级畅听 VIP（仅限当天，不可指定日期）"""
+        if not self.is_ready:
+            yield event.plain_result(MISSING_DEP_MSG)
+            return
+        try:
+            parser: KuGouParser = self._get_parser_by_type(KuGouParser)
+        except ValueError:
+            yield event.plain_result("酷狗音乐扩展解析器未启用，请在插件配置中开启。")
+            return
+
+        yield event.plain_result("正在请求酷狗概念版 VIP 接口，请稍候...")
+        result = await parser.claim_vip()
+        yield event.plain_result(result)

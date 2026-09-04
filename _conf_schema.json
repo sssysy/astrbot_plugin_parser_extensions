@@ -197,6 +197,55 @@
                         "default": false
                     }
                 }
+            },
+            "kugou": {
+                "name": "酷狗音乐",
+                "items": {
+                    "enable": {
+                        "description": "启用酷狗音乐解析",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填。使用指令【/登录酷狗】扫码后自动填充，也可手动填写",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "base_url": {
+                        "description": "API 地址",
+                        "hint": "必填。KuGouMusicApi 的服务地址，如 http://localhost:3000",
+                        "type": "string",
+                        "default": "http://localhost:3000"
+                    },
+                    "quality": {
+                        "description": "默认音质",
+                        "hint": "下载歌曲的默认音质等级。若所选音质不可用会自动降级到最高可用音质",
+                        "type": "string",
+                        "options": [
+                            "128",
+                            "320",
+                            "flac",
+                            "high",
+                            "viper_clear",
+                            "viper_atmos"
+                        ],
+                        "labels": [
+                            "标准 (128k)",
+                            "极高 (320k)",
+                            "无损 (FLAC)",
+                            "超清无损 (High)",
+                            "蝰蛇超清",
+                            "蝰蛇全景声"
+                        ],
+                        "default": "320"
+                    }
+                }
             }
         }
     }
