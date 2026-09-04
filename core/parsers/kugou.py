@@ -382,11 +382,23 @@ class KuGouParser(BaseParser):
         clean_artist_name = re.sub(r'[\\/:*?"<>|]', " & ", artist_name).strip()
         title = song_name
 
-        timelength = detail.get("timelength") or detail.get("duration") or 0
+        # 时长解析：安全转换为整数，毫秒转秒
+        raw_timelength = detail.get("timelength") or detail.get("duration") or 0
+        try:
+            timelength = int(float(raw_timelength))
+        except (ValueError, TypeError):
+            timelength = 0
         duration_sec = (timelength // 1000) if timelength > 10000 else timelength
 
-        album_id = album_id or int(detail.get("album_id") or 0)
-        album_audio_id = album_audio_id or int(detail.get("album_audio_id") or detail.get("mixsongid") or 0)
+        try:
+            album_id = album_id or int(float(detail.get("album_id") or 0))
+        except (ValueError, TypeError):
+            pass
+
+        try:
+            album_audio_id = album_audio_id or int(float(detail.get("album_audio_id") or detail.get("mixsongid") or 0))
+        except (ValueError, TypeError):
+            pass
 
         # 2. 获取封面图片
         cover_url = detail.get("img") or detail.get("image") or detail.get("cover") or ""
@@ -397,7 +409,11 @@ class KuGouParser(BaseParser):
         target_quality = self.quality
         url_info = await self._get_song_url_with_fallback(hash_val, target_quality, album_id, album_audio_id)
         audio_url = url_info.get("url", "")
-        file_size = url_info.get("file_size", 0)
+        raw_file_size = url_info.get("file_size") or url_info.get("filesize") or 0
+        try:
+            file_size = int(float(raw_file_size))
+        except (ValueError, TypeError):
+            file_size = 0
         audio_type = url_info.get("extname") or "mp3"
         resolved_quality = url_info.get("quality", target_quality)
 
@@ -608,8 +624,28 @@ class KuGouParser(BaseParser):
         if not audio_url:
             return {}
 
+        data_field = data.get("data")
         file_size = data.get("file_size") or data.get("filesize") or 0
+        if not file_size and isinstance(data_field, list) and data_field:
+            item = data_field[0]
+            if isinstance(item, dict):
+                file_size = item.get("file_size") or item.get("filesize") or 0
+        elif not file_size and isinstance(data_field, dict):
+            file_size = data_field.get("file_size") or data_field.get("filesize") or 0
+
+        try:
+            file_size = int(float(file_size))
+        except (ValueError, TypeError):
+            file_size = 0
+
         extname = data.get("extname") or ""
+        if not extname and isinstance(data_field, list) and data_field:
+            item = data_field[0]
+            if isinstance(item, dict):
+                extname = item.get("extname") or ""
+        elif not extname and isinstance(data_field, dict):
+            extname = data_field.get("extname") or ""
+
         if not extname and "." in audio_url.split("?")[0]:
             extname = audio_url.split("?")[0].rsplit(".", 1)[-1]
         extname = extname or "mp3"
