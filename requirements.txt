@@ -1,3 +1,3 @@
-# 扩展包特有依赖（原插件已有依赖由原插件提供）
+# 扩展包依赖，不含 Astrbot 和 astrbot_plugin_parser 已有依赖
 jmcomic>=2.7.0
 telethon>=1.34.0,<2.0.0
