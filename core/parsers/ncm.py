@@ -220,7 +220,7 @@ class NCMParser(BaseParser):
         duration_sec = song_dt // 1000
 
         ar_list = detail.get("ar", []) or detail.get("artists", [])
-        artist_name = " / ".join(ar.get("name", "") for ar in ar_list if ar.get("name")) or "未知歌手"
+        artist_name = " & ".join(ar.get("name", "") for ar in ar_list if ar.get("name")) or "未知歌手"
         author_avatar = ar_list[0].get("img1v1Url") or ar_list[0].get("picUrl") if ar_list else None
 
         album = detail.get("al", {}) or detail.get("album", {})

@@ -2,6 +2,6 @@ name: astrbot_plugin_parser_extensions
 display_name: 万能解析器(扩展包)
 desc: 万能解析器的扩展插件；追加 Telegram、磁力、JMComic、网易云、小红书(增强) 的解析能力。
 help: 强依赖 astrbot_plugin_parser 作为前置
-version: 1.0.0
+version: 1.0.1
 author: sssysy
 repo: https://github.com/sssysy/astrbot_plugin_parser_extensions
