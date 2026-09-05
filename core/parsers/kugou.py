@@ -9,8 +9,6 @@ from collections.abc import AsyncGenerator
 from re import Match
 from typing import Any, ClassVar
 
-from pathlib import Path
-
 from aiohttp import ClientError
 
 from data.plugins.astrbot_plugin_parser.core.cookie import CookieJar
@@ -51,15 +49,6 @@ class KuGouParser(BaseParser):
         self.quality = getattr(self.mycfg, "quality", None) or "320"
         self.cookiejar = CookieJar(config, self.mycfg, domain="kugou.com")
         self._qr_key: str | None = None
-
-        if not self.cookiejar.cookies_str:
-            docs_cookie = Path(__file__).resolve().parent.parent.parent / "docs" / "kgcookie.txt"
-            if docs_cookie.exists():
-                raw = docs_cookie.read_text(encoding="utf-8").strip()
-                if raw:
-                    self.cookiejar.cookies_str = self.cookiejar.clean_cookies_str(raw)
-                    self.cookiejar._load_from_cookies_str(self.cookiejar.cookies_str)
-                    self.cookiejar.save_to_file()
 
         self.headers.update({"Referer": "https://www.kugou.com"})
         self._sync_cookie_header()
