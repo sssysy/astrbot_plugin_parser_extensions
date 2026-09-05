@@ -219,13 +219,13 @@
                     },
                     "base_url": {
                         "description": "API 地址",
-                        "hint": "必填。KuGouMusicApi 的服务地址，如 http://localhost:3000",
+                        "hint": "必填。KuGouMusicApi 的服务地址，如 http://192.168.31.2:3001",
                         "type": "string",
-                        "default": "http://localhost:3000"
+                        "default": "http://192.168.31.2:3001"
                     },
                     "quality": {
                         "description": "默认音质",
-                        "hint": "下载歌曲的默认音质等级。若所选音质不可用会自动降级到最高可用音质",
+                        "hint": "下载歌曲的默认音质等级",
                         "type": "string",
                         "options": [
                             "128",
@@ -243,7 +243,7 @@
                             "蝰蛇超清",
                             "蝰蛇全景声"
                         ],
-                        "default": "320"
+                        "default": "high"
                     }
                 }
             }

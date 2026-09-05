@@ -9,6 +9,8 @@ from collections.abc import AsyncGenerator
 from re import Match
 from typing import Any, ClassVar
 
+from pathlib import Path
+
 from aiohttp import ClientError
 
 from data.plugins.astrbot_plugin_parser.core.cookie import CookieJar
@@ -49,6 +51,15 @@ class KuGouParser(BaseParser):
         self.quality = getattr(self.mycfg, "quality", None) or "320"
         self.cookiejar = CookieJar(config, self.mycfg, domain="kugou.com")
         self._qr_key: str | None = None
+
+        if not self.cookiejar.cookies_str:
+            docs_cookie = Path(__file__).resolve().parent.parent.parent / "docs" / "kgcookie.txt"
+            if docs_cookie.exists():
+                raw = docs_cookie.read_text(encoding="utf-8").strip()
+                if raw:
+                    self.cookiejar.cookies_str = self.cookiejar.clean_cookies_str(raw)
+                    self.cookiejar._load_from_cookies_str(self.cookiejar.cookies_str)
+                    self.cookiejar.save_to_file()
 
         self.headers.update({"Referer": "https://www.kugou.com"})
         self._sync_cookie_header()
@@ -400,41 +411,36 @@ class KuGouParser(BaseParser):
         except (ValueError, TypeError):
             pass
 
-        # 2. 获取封面图片
-        cover_url = detail.get("img") or detail.get("image") or detail.get("cover") or ""
-        if not cover_url:
-            cover_url = await self._get_song_cover(hash_val, album_id=album_id, album_audio_id=album_audio_id)
+        # 2. 获取封面与头像图片
+        cover_url, avatar_url = await self._get_song_images(
+            hash_val, album_id=album_id, album_audio_id=album_audio_id
+        )
 
-        # 3. 获取播放 URL（带降级机制）
-        target_quality = self.quality
-        url_info = await self._get_song_url_with_fallback(hash_val, target_quality, album_id, album_audio_id)
-        audio_url = url_info.get("url", "")
-        raw_file_size = url_info.get("file_size") or url_info.get("filesize") or 0
-        try:
-            file_size = int(float(raw_file_size))
-        except (ValueError, TypeError):
-            file_size = 0
-        audio_type = url_info.get("extname") or "mp3"
-        resolved_quality = url_info.get("quality", target_quality)
-
-        if not audio_url:
-            raise ParseException("该歌曲暂无可用播放地址（可能需要酷狗 VIP 或暂无版权）")
+        # 3. 获取播放 URL（直接按指定音质请求，不降级兜底）
+        url_info = await self._query_song_url(
+            hash_val, self.quality, album_id=album_id, album_audio_id=album_audio_id
+        )
+        audio_url = url_info["url"]
+        file_size = url_info["file_size"]
+        audio_type = url_info["extname"]
+        audio_hash = url_info["hash"]
+        resolved_quality = self.quality
 
         # 4. 创建音频与封面内容
         safe_filename = f"{clean_song_name} - {clean_artist_name}.{audio_type}"
         audio_task = self.downloader.download_audio(
             audio_url,
             audio_name=safe_filename,
-            headers=self.headers,
+            headers=self.downloader.default_headers,
             proxy=self.proxy,
         )
         audio_content = AudioContent(audio_task, duration=duration_sec)
-        author = self.create_author(artist_name)
+        author = self.create_author(artist_name, avatar_url=avatar_url)
 
         card_contents: list[MediaContent] = []
         if cover_url:
             cover_task = self.downloader.download_img(
-                cover_url, headers=self.headers, proxy=self.proxy
+                cover_url, headers=self.downloader.default_headers, proxy=self.proxy
             )
             card_contents.append(ImageContent(cover_task))
 
@@ -508,53 +514,42 @@ class KuGouParser(BaseParser):
             pass
         return {}
 
-    async def _get_song_cover(self, hash_val: str, album_id: int = 0, album_audio_id: int = 0) -> str:
-        """通过 /images 接口获取歌曲专辑或歌手图片"""
+    async def _get_song_images(
+        self, hash_val: str, album_id: int = 0, album_audio_id: int = 0
+    ) -> tuple[str, str]:
+        """通过 /images 接口获取歌曲专辑封面与歌手头像 (返回 (cover_url, avatar_url))"""
         url = f"{self.base_url}/images?hash={hash_val}&count=1"
         if album_id:
             url += f"&album_id={album_id}"
         if album_audio_id:
             url += f"&album_audio_id={album_audio_id}"
 
-        try:
-            async with self.session.get(url, headers=self.headers) as resp:
-                if resp.status < 400:
-                    data = await resp.json()
-                    imgs = data.get("data", [])
-                    if isinstance(imgs, list) and imgs:
-                        first = imgs[0]
-                        if isinstance(first, list) and first:
-                            item = first[0]
-                            cover = item.get("sizable_cover") or item.get("author_image") or item.get("cover") or ""
-                            if cover and "{size}" in cover:
-                                cover = cover.replace("{size}", "400")
-                            return cover
-        except Exception:
-            pass
-        return ""
+        async with self.session.get(url, headers=self.headers) as resp:
+            if resp.status != 200:
+                raise ParseException(f"获取酷狗图片接口失败: HTTP {resp.status}")
+            data = await resp.json()
 
-    async def _get_song_url_with_fallback(
-        self,
-        hash_val: str,
-        target_quality: str,
-        album_id: int = 0,
-        album_audio_id: int = 0,
-    ) -> dict[str, Any]:
-        """获取歌曲播放 URL，并在目标音质不可用时自动按顺序降级"""
-        # 构建尝试的音质列表
-        qualities_to_try: list[str] = [target_quality]
-        try_index = QUALITY_FALLBACK_ORDER.index(target_quality) if target_quality in QUALITY_FALLBACK_ORDER else 1
-        for q in QUALITY_FALLBACK_ORDER[try_index + 1:]:
-            if q not in qualities_to_try:
-                qualities_to_try.append(q)
+        data_list = data.get("data")
+        if not data_list or not isinstance(data_list, list):
+            raise ParseException("酷狗图片接口未返回有效数据")
 
-        for q in qualities_to_try:
-            url_info = await self._query_song_url(hash_val, q, album_id, album_audio_id)
-            if url_info.get("url"):
-                url_info["quality"] = q
-                return url_info
+        first_entry = data_list[0]
+        cover = ""
+        albums = first_entry.get("album") or []
+        if albums:
+            cover = albums[0].get("sizable_cover") or albums[0].get("cover") or ""
 
-        return {}
+        avatar = ""
+        authors = first_entry.get("author") or []
+        if authors:
+            avatar = authors[0].get("sizable_avatar") or authors[0].get("avatar") or ""
+
+        if cover and "{size}" in cover:
+            cover = cover.replace("{size}", "400")
+        if avatar and "{size}" in avatar:
+            avatar = avatar.replace("{size}", "400")
+
+        return cover, avatar
 
     async def _query_song_url(
         self,
@@ -563,7 +558,7 @@ class KuGouParser(BaseParser):
         album_id: int = 0,
         album_audio_id: int = 0,
     ) -> dict[str, Any]:
-        """查询单次音质的播放 URL"""
+        """查询指定音质的播放 URL，不降级直接请求"""
         ts = int(time.time() * 1000)
         params_str = f"hash={hash_val}&quality={quality}&timestamp={ts}"
         if album_id:
@@ -571,87 +566,33 @@ class KuGouParser(BaseParser):
         if album_audio_id:
             params_str += f"&album_audio_id={album_audio_id}"
 
-        # 方式 1: /song/url
         primary_url = f"{self.base_url}/song/url?{params_str}"
-        url_info = await self._fetch_url_from_endpoint(primary_url)
-        if url_info.get("url"):
-            return url_info
-
-        # 方式 2: /song/url/auth/merge (在已登录情况下重试)
-        if self.cookiejar.cookies_str:
-            auth_url = f"{self.base_url}/song/url/auth/merge?{params_str}"
-            url_info = await self._fetch_url_from_endpoint(auth_url)
-            if url_info.get("url"):
-                return url_info
-
-        return {}
+        return await self._fetch_url_from_endpoint(primary_url)
 
     async def _fetch_url_from_endpoint(self, endpoint: str) -> dict[str, Any]:
         """从指定接口请求并解析出播放直链与音频元数据"""
-        try:
-            async with self.session.get(endpoint, headers=self.headers) as resp:
-                if resp.status >= 400:
-                    return {}
-                data = await resp.json()
-        except Exception:
-            return {}
+        async with self.session.get(endpoint, headers=self.headers) as resp:
+            if resp.status != 200:
+                err_text = await resp.text()
+                raise ParseException(f"请求酷狗歌曲直链接口失败: HTTP {resp.status}, 详情: {err_text[:200]}")
+            data = await resp.json()
 
-        # 解析 URL
+        if data.get("status") != 1:
+            err_msg = data.get("error") or data.get("errmsg") or f"状态码: {data.get('status')}"
+            raise ParseException(f"酷狗 API 错误: {err_msg}")
+
         raw_urls = data.get("url")
-        audio_url = ""
-        if isinstance(raw_urls, list) and raw_urls:
-            audio_url = raw_urls[0]
-        elif isinstance(raw_urls, str) and raw_urls:
-            audio_url = raw_urls
+        if not raw_urls:
+            raise ParseException("酷狗 API 未返回播放链接")
 
-        # 如果根级没有 url 字段，检查 data 字段
-        if not audio_url:
-            data_field = data.get("data")
-            if isinstance(data_field, list) and data_field:
-                item = data_field[0]
-                u = item.get("url")
-                if isinstance(u, list) and u:
-                    audio_url = u[0]
-                elif isinstance(u, str):
-                    audio_url = u
-            elif isinstance(data_field, dict):
-                u = data_field.get("url")
-                if isinstance(u, list) and u:
-                    audio_url = u[0]
-                elif isinstance(u, str):
-                    audio_url = u
-
-        if not audio_url:
-            return {}
-
-        data_field = data.get("data")
-        file_size = data.get("file_size") or data.get("filesize") or 0
-        if not file_size and isinstance(data_field, list) and data_field:
-            item = data_field[0]
-            if isinstance(item, dict):
-                file_size = item.get("file_size") or item.get("filesize") or 0
-        elif not file_size and isinstance(data_field, dict):
-            file_size = data_field.get("file_size") or data_field.get("filesize") or 0
-
-        try:
-            file_size = int(float(file_size))
-        except (ValueError, TypeError):
-            file_size = 0
-
-        extname = data.get("extname") or ""
-        if not extname and isinstance(data_field, list) and data_field:
-            item = data_field[0]
-            if isinstance(item, dict):
-                extname = item.get("extname") or ""
-        elif not extname and isinstance(data_field, dict):
-            extname = data_field.get("extname") or ""
-
-        if not extname and "." in audio_url.split("?")[0]:
-            extname = audio_url.split("?")[0].rsplit(".", 1)[-1]
-        extname = extname or "mp3"
+        audio_url = raw_urls[0] if isinstance(raw_urls, list) else raw_urls
+        file_size = int(data["fileSize"])
+        extname = data.get("extName", "mp3")
+        audio_hash = data.get("hash", "")
 
         return {
             "url": audio_url,
             "file_size": file_size,
             "extname": extname,
+            "hash": audio_hash,
         }
