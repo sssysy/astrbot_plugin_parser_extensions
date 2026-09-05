@@ -31,6 +31,7 @@ class ParserItem(ConfigNode):
     api_id: int | None
     api_hash: str | None
     parse_original_image: bool | None
+    auto_claim_vip: bool | None
 
     @property
     def name(self) -> str:

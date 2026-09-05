@@ -244,6 +244,12 @@
                             "蝰蛇全景声"
                         ],
                         "default": "high"
+                    },
+                    "auto_claim_vip": {
+                        "description": "解析前自动领取VIP",
+                        "hint": "开启后在解析歌曲前自动检查VIP状态并领取",
+                        "type": "bool",
+                        "default": false
                     }
                 }
             }

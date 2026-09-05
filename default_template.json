@@ -42,6 +42,7 @@
     "use_proxy": false,
     "cookies": "",
     "base_url": "http://localhost:3000",
-    "quality": "320"
+    "quality": "320",
+    "auto_claim_vip": false
   }
 ]

@@ -3,13 +3,16 @@
 import asyncio
 import base64
 import datetime
+import json
 import re
 import time
 from collections.abc import AsyncGenerator
+from pathlib import Path
 from re import Match
 from typing import Any, ClassVar
 
 from aiohttp import ClientError
+from astrbot.api import logger
 
 from data.plugins.astrbot_plugin_parser.core.cookie import CookieJar
 from data.plugins.astrbot_plugin_parser.core.data import (
@@ -49,6 +52,10 @@ class KuGouParser(BaseParser):
         self.quality = getattr(self.mycfg, "quality", None) or "320"
         self.cookiejar = CookieJar(config, self.mycfg, domain="kugou.com")
         self._qr_key: str | None = None
+
+        self.auto_claim_vip = bool(getattr(self.mycfg, "auto_claim_vip", False))
+        self._vip_cache_file = self.cfg.cache_dir / "kugou_vip_cache.json"
+        self._vip_cache: dict[str, Any] | None = None
 
         self.headers.update({"Referer": "https://www.kugou.com"})
         self._sync_cookie_header()
@@ -259,7 +266,189 @@ class KuGouParser(BaseParser):
         except Exception:
             pass
 
-    # ==================== VIP 领取 ====================
+    # ==================== VIP 缓存与自动领取 ====================
+
+    def _load_vip_cache(self) -> dict[str, Any]:
+        """读取本地 VIP 状态缓存"""
+        if self._vip_cache is not None:
+            return self._vip_cache
+
+        if self._vip_cache_file.is_file():
+            try:
+                with self._vip_cache_file.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        self._vip_cache = data
+                        return self._vip_cache
+            except Exception as e:
+                logger.warning(f"[KuGouParser] 读取 VIP 状态缓存失败: {e}")
+
+        self._vip_cache = {
+            "is_vip": False,
+            "has_notified_fail": False,
+            "vip_end_time": None,
+            "updated_at": 0,
+        }
+        return self._vip_cache
+
+    def _save_vip_cache(
+        self,
+        is_vip: bool,
+        has_notified_fail: bool,
+        vip_end_time: Any = None,
+    ) -> None:
+        """保存 VIP 状态缓存至内存与持久化文件"""
+        cache_data = {
+            "is_vip": is_vip,
+            "has_notified_fail": has_notified_fail,
+            "vip_end_time": vip_end_time,
+            "updated_at": time.time(),
+        }
+        self._vip_cache = cache_data
+        try:
+            self._vip_cache_file.parent.mkdir(parents=True, exist_ok=True)
+            with self._vip_cache_file.open("w", encoding="utf-8") as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"[KuGouParser] 保存 VIP 状态缓存失败: {e}")
+
+    async def _check_vip_from_api(self) -> tuple[bool, Any]:
+        """调用 /user/vip/detail 查询账号 VIP 状态，返回 (is_valid_vip, vip_end_time)"""
+        ts = int(time.time() * 1000)
+        url = f"{self.base_url}/user/vip/detail?timestamp={ts}"
+        try:
+            async with self.session.get(url, headers=self.headers) as resp:
+                if resp.status >= 400:
+                    logger.warning(f"[KuGouParser] 查询 VIP 状态 HTTP 失败: {resp.status}")
+                    return False, None
+                data = await resp.json()
+        except Exception as e:
+            logger.warning(f"[KuGouParser] 查询 VIP 状态请求异常: {e}")
+            return False, None
+
+        if not isinstance(data, dict):
+            return False, None
+
+        data_obj = data.get("data")
+        if not isinstance(data_obj, dict):
+            data_obj = data
+
+        is_vip_val = data_obj.get("is_vip")
+        if is_vip_val is None:
+            is_vip_val = data_obj.get("is_union_vip") or data_obj.get("vip")
+
+        is_vip = False
+        if isinstance(is_vip_val, bool):
+            is_vip = is_vip_val
+        elif isinstance(is_vip_val, (int, float)):
+            is_vip = is_vip_val > 0
+        elif isinstance(is_vip_val, str):
+            is_vip = is_vip_val.lower() in ("true", "1", "yes")
+
+        vip_end_time = data_obj.get("vip_end_time") or data_obj.get("end_time")
+
+        if is_vip and vip_end_time:
+            try:
+                if isinstance(vip_end_time, (int, float)):
+                    end_ts = vip_end_time if vip_end_time < 10000000000 else (vip_end_time / 1000)
+                    if time.time() >= end_ts:
+                        is_vip = False
+                elif isinstance(vip_end_time, str):
+                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                        try:
+                            dt = datetime.datetime.strptime(vip_end_time, fmt)
+                            if datetime.datetime.now() >= dt:
+                                is_vip = False
+                            break
+                        except ValueError:
+                            pass
+            except Exception:
+                pass
+
+        return is_vip, vip_end_time
+
+    async def _do_claim_vip(self) -> tuple[bool, str]:
+        """执行自动领取 VIP 接口调用，返回 (is_success, msg)"""
+        if not (self.cookiejar.cookies_str or (self.mycfg and getattr(self.mycfg, "cookies", None))):
+            return False, "未配置酷狗登录 Cookie"
+
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        ts = int(time.time() * 1000)
+
+        # 1. 领取 1 天 VIP
+        day_vip_url = f"{self.base_url}/youth/day/vip?receive_day={today_str}&timestamp={ts}"
+        try:
+            async with self.session.get(day_vip_url, headers=self.headers) as resp:
+                if resp.status >= 400:
+                    return False, f"HTTP {resp.status}"
+                day_res = await resp.json()
+        except Exception as e:
+            return False, str(e)
+
+        status = day_res.get("status") if isinstance(day_res, dict) else None
+        error_code = day_res.get("error_code") if isinstance(day_res, dict) else None
+        day_msg = self._extract_api_message(day_res)
+
+        already_claimed = any(
+            kw in day_msg for kw in ("已领", "已经领", "重复", "已参与", "今天已")
+        )
+
+        day_success = (error_code == 0 or status in (1, 200) or already_claimed)
+        if not day_success:
+            return False, day_msg
+
+        # 2. 尝试升级为畅听 VIP
+        upgrade_url = f"{self.base_url}/youth/day/vip/upgrade?timestamp={ts + 1}"
+        try:
+            async with self.session.get(upgrade_url, headers=self.headers) as resp:
+                if resp.status < 400:
+                    up_res = await resp.json()
+                    logger.debug(f"[KuGouParser] VIP 自动升级响应: {up_res}")
+        except Exception as e:
+            logger.debug(f"[KuGouParser] VIP 升级请求异常: {e}")
+
+        return True, "成功"
+
+    async def _auto_ensure_vip(self) -> tuple[bool, str | None]:
+        """
+        解析前自动检查并领取 VIP：
+        1. 每次解析调用查询 VIP 接口
+        2. 若 VIP 有效：重置失败提示标记，无需提示
+        3. 若 VIP 过期：触发自动领取
+           - 领取成功：重置失败提示标记，更新缓存
+           - 领取失败：若本轮过期尚未提示过，附带提示并记录缓存；若已提示过则静默
+        返回 (is_vip, fail_tip_msg)
+        """
+        cache = self._load_vip_cache()
+        has_notified_fail = bool(cache.get("has_notified_fail", False))
+
+        # 1. 每次解析都调用查询 VIP 接口
+        is_vip, end_time = await self._check_vip_from_api()
+
+        if is_vip:
+            # VIP 状态有效：重置失败提示标记
+            if has_notified_fail or not cache.get("is_vip", False):
+                self._save_vip_cache(is_vip=True, has_notified_fail=False, vip_end_time=end_time)
+            return True, None
+
+        # 2. VIP 过期/无效：尝试自动领取
+        logger.info("[KuGouParser] 检测到 VIP 已过期或无效，正在自动领取概念版 VIP...")
+        claim_ok, claim_msg = await self._do_claim_vip()
+
+        if claim_ok:
+            logger.info("[KuGouParser] 概念版 VIP 自动领取成功！")
+            self._save_vip_cache(is_vip=True, has_notified_fail=False, vip_end_time=None)
+            return True, None
+
+        # 3. 自动领取失败
+        logger.warning(f"[KuGouParser] 酷狗自动领取 VIP 失败: {claim_msg}")
+        if not has_notified_fail:
+            # 首次失败：记录并提示一次
+            self._save_vip_cache(is_vip=False, has_notified_fail=True, vip_end_time=None)
+            return False, "酷狗自动领取 vip 失败，请重试"
+        else:
+            # 后续失败：静默，不重复提示
+            return False, None
 
     async def claim_vip(self) -> str:
         """手动领取酷狗概念版 1 天 VIP 并自动升级为畅听 VIP（固定获取当天一天）"""
@@ -304,6 +493,9 @@ class KuGouParser(BaseParser):
         except Exception:
             pass
 
+        # 手动领取后重置失败提示标记
+        self._save_vip_cache(is_vip=True, has_notified_fail=False, vip_end_time=None)
+
         results.append("💡 提示：该福利仅限酷狗概念版账号，请确保 KuGouMusicApi 配置为 platform=lite。")
         return "\n".join(results)
 
@@ -317,7 +509,7 @@ class KuGouParser(BaseParser):
         error_code = res.get("error_code")
         if msg:
             return str(msg)
-        if error_code == 0 or status == 1:
+        if error_code == 0 or status in (1, 200):
             return "成功"
         return f"返回状态码: status={status}, error_code={error_code}"
 
@@ -357,6 +549,10 @@ class KuGouParser(BaseParser):
 
     async def _process_song(self, hash_val: str, album_id: int = 0, album_audio_id: int = 0):
         """处理单曲解析"""
+        fail_tip: str | None = None
+        if self.auto_claim_vip:
+            _, fail_tip = await self._auto_ensure_vip()
+
         # 1. 获取歌曲详情
         detail = await self._get_song_detail(hash_val)
         if not detail and album_audio_id > 0:
@@ -458,6 +654,16 @@ class KuGouParser(BaseParser):
                     force_merge=False,
                 )
             ]
+
+        if fail_tip:
+            send_groups.insert(
+                0,
+                SendGroup(
+                    contents=[TextContent(fail_tip)],
+                    render_card=False,
+                    force_merge=False,
+                ),
+            )
 
         return self.result(
             title=title,
