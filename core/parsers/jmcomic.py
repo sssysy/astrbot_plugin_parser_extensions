@@ -45,6 +45,34 @@ class JMComicParser(BaseParser):
         super().__init__(config, downloader)
         self.mycfg = config.parser.jmcomic
 
+    @property
+    def proxy(self) -> str | None:
+        raw_proxy = super().proxy
+        if raw_proxy and isinstance(raw_proxy, str):
+            cleaned = raw_proxy.strip()
+            return cleaned if cleaned else None
+        return None
+
+    def _get_option(self) -> JmOption:
+        option = JmOption.default()
+        if hasattr(option, "client"):
+            client_dict = option.client
+            postman = client_dict.get("postman")
+            if postman is None:
+                postman = {}
+                client_dict["postman"] = postman
+            meta_data = postman.get("meta_data")
+            if meta_data is None:
+                meta_data = {}
+                postman["meta_data"] = meta_data
+            meta_data["proxies"] = self.proxy
+        if hasattr(option, "proxies"):
+            try:
+                option.proxies = self.proxy
+            except Exception:
+                pass
+        return option
+
     @staticmethod
     def _blur(image_path: str | Path, output_path: str | Path | None = None, radius: int = 20) -> Path:
         """对图片施加全局高斯模糊
@@ -122,7 +150,13 @@ class JMComicParser(BaseParser):
             raise ParseException("[JMComic] 未安装 jmcomic 依赖库，请先在终端安装: pip install jmcomic")
         
         # 获取漫画详情信息
-        async with JmOption.default().new_jm_async_client() as JMClient:
+        option = self._get_option()
+        try:
+            client_ctx = option.new_jm_async_client(proxies=self.proxy)
+        except TypeError:
+            client_ctx = option.new_jm_async_client()
+
+        async with client_ctx as JMClient:
             # 请求详情
             try:
                 album_detail = await JMClient.get_album_detail(comic_id)
