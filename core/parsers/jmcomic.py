@@ -34,6 +34,7 @@ from data.plugins.astrbot_plugin_parser.core.download import Downloader
 from data.plugins.astrbot_plugin_parser.core.exception import ParseException
 from data.plugins.astrbot_plugin_parser.core.parsers.base import BaseParser, handle
 
+from astrbot.api import logger
 from ..config import PluginConfig
 
 
@@ -96,6 +97,8 @@ class JMComicParser(BaseParser):
         """解密禁漫下载下来的错位图片"""
         split_num = JmImageTool.get_num_by_url(scramble_id, img_url)
         save_path = image_path.parent / f"{image_path.stem}_decode{image_path.suffix}"
+        if save_path.exists() and save_path.stat().st_size > 0:
+            return save_path
         with Image.open(image_path) as img_src:
             JmImageTool.decode_and_save(split_num, img_src, str(save_path))  # type: ignore
         return save_path
@@ -119,20 +122,32 @@ class JMComicParser(BaseParser):
     async def _download_all_photo(self, photo_detail: JmPhotoDetail) -> list[Path]:
         """后台并发下载所有图片，返回下载并解密后的图片路径列表"""
         photos = list(photo_detail)
-        urls = [p.img_url for p in photos]
+        sem = asyncio.Semaphore(16)
 
-        downloaded_paths = await self.downloader.download_imgs_concurrent(urls, proxy=self.proxy)
+        async def _download_and_decode(photo) -> Path | None:
+            async with sem:
+                try:
+                    raw_path = await self.downloader.download_img(
+                        photo.img_url, proxy=self.proxy
+                    )
+                    return await asyncio.to_thread(
+                        self.decode_img, photo.img_url, photo.scramble_id, raw_path
+                    )
+                except Exception as e:
+                    logger.warning(f"[JMComic] 图片下载或解密失败 ({photo.img_url}): {e}")
+                    return None
 
-        return [
-            self.decode_img(p.img_url, p.scramble_id, path) # 解密图片
-            for p, path in zip(photos, downloaded_paths)
-            if path is not None
-        ]
+        tasks = [_download_and_decode(p) for p in photos]
+        results = await asyncio.gather(*tasks)
+        return [path for path in results if path is not None]
     
     async def _build_pdf(self, img_paths: asyncio.Task[list[Path]], pdf_name: str) -> Path:
         """根据图片列表构建 PDF，返回 pdf 路径"""
         paths = await img_paths
-        pdf_path = self.imgs2PDF(paths, self.cfg.cache_dir / f"{pdf_name}.pdf")
+        if not paths:
+            raise ParseException("漫画图片下载失败，未能获取到任何有效图片")
+        pdf_path = self.cfg.cache_dir / f"{pdf_name}.pdf"
+        await asyncio.to_thread(self.imgs2PDF, paths, pdf_path)
         return pdf_path
     
     @handle("18comic.vip/photo", r"18comic.vip/photo/(?P<comic_id>\d{5,})")
@@ -231,9 +246,12 @@ class JMComicParser(BaseParser):
                         ))
                     # 合并转发
                     elif send_mode == "merge":
-                        img_contents: list[MediaContent] = []
-                        for img in await img_paths:
-                            img_contents.append(ImageContent(img))
+                        downloaded = await img_paths
+                        if not downloaded:
+                            raise ParseException("漫画图片下载失败，未能获取到任何有效图片")
+                        img_contents: list[MediaContent] = [
+                            ImageContent(img) for img in downloaded
+                        ]
                         send_groups.append(SendGroup( # 构造图片
                             contents=img_contents,
                             render_card = False,
