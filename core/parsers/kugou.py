@@ -193,13 +193,20 @@ class KuGouParser(BaseParser):
 
     async def check_qr_state(self) -> AsyncGenerator[str, None]:
         """轮询二维码扫码状态，yield 状态消息"""
-        if not self._qr_key:
+        current_key = self._qr_key
+        if not current_key:
             yield "未找到二维码 key，请重新生成"
             return
 
+        scan_tip_pending = True
+
         for _ in range(60):
+            # 若已生成新的二维码 key，当前旧轮询立即静默终止，避免并发旧任务刷屏
+            if self._qr_key != current_key:
+                return
+
             ts = int(time.time() * 1000)
-            check_url = f"{self.base_url}/login/qr/check?key={self._qr_key}&timestamp={ts}"
+            check_url = f"{self.base_url}/login/qr/check?key={current_key}&timestamp={ts}"
             try:
                 async with self.session.get(check_url, headers=self.headers) as resp:
                     if resp.status >= 400:
@@ -211,6 +218,9 @@ class KuGouParser(BaseParser):
                 await asyncio.sleep(3)
                 continue
 
+            if self._qr_key != current_key:
+                return
+
             # 状态判定：0 为过期，1 为等待扫码，2 为待确认，4 为授权登录成功
             data_info = check_data.get("data") or {}
             status_code = data_info.get("status") if isinstance(data_info, dict) else None
@@ -221,10 +231,13 @@ class KuGouParser(BaseParser):
                 yield "二维码已过期，请重新生成"
                 return
             elif status_code == 1:
+                scan_tip_pending = True
                 await asyncio.sleep(3)
                 continue
             elif status_code == 2:
-                yield "已扫码，请在手机上确认授权"
+                if scan_tip_pending:
+                    yield "已扫码，请在手机上确认授权"
+                    scan_tip_pending = False
                 await asyncio.sleep(3)
                 continue
             elif status_code == 4:
@@ -251,7 +264,8 @@ class KuGouParser(BaseParser):
                 await asyncio.sleep(3)
                 continue
 
-        yield "登录超时，请重新生成二维码"
+        if self._qr_key == current_key:
+            yield "登录超时，请重新生成二维码"
 
     def _save_cookies(self, cookie_str: str) -> None:
         """保存 cookies 到本地并更新配置"""

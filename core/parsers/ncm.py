@@ -144,13 +144,20 @@ class NCMParser(BaseParser):
 
     async def check_qr_state(self) -> AsyncGenerator[str, None]:
         """轮询二维码登录状态，yield 状态消息"""
-        if not self._qr_key:
+        current_key = self._qr_key
+        if not current_key:
             yield "未找到二维码 key，请重新生成"
             return
 
+        scan_tip_pending = True
+
         for _ in range(60):
+            # 若已生成新的二维码 key，当前旧轮询立即静默终止，避免并发旧任务刷屏
+            if self._qr_key != current_key:
+                return
+
             ts = int(time.time() * 1000)
-            check_url = f"{self.base_url}/login/qr/check?key={self._qr_key}&timestamp={ts}"
+            check_url = f"{self.base_url}/login/qr/check?key={current_key}&timestamp={ts}"
             try:
                 async with self.session.get(check_url, headers=self.headers) as resp:
                     if resp.status == 502:
@@ -169,15 +176,22 @@ class NCMParser(BaseParser):
                 await asyncio.sleep(3)
                 continue
 
+            if self._qr_key != current_key:
+                return
+
             code = check_data.get("code")
             if code == 800:
-                yield "二维码已过期，请重新生成"
+                msg = check_data.get("message") or "二维码已过期，请重新生成"
+                yield msg
                 return
             elif code == 801:
+                scan_tip_pending = True
                 await asyncio.sleep(3)
                 continue
             elif code == 802:
-                yield "已扫码，请在手机上确认授权"
+                if scan_tip_pending:
+                    yield "已扫码，请在手机上确认授权"
+                    scan_tip_pending = False
                 await asyncio.sleep(3)
                 continue
             elif code == 803:
@@ -190,7 +204,8 @@ class NCMParser(BaseParser):
                 await asyncio.sleep(3)
                 continue
 
-        yield "登录超时，请重新生成二维码"
+        if self._qr_key == current_key:
+            yield "登录超时，请重新生成二维码"
 
     def _save_cookies(self, cookie_str: str) -> None:
         """保存 cookies 到本地文件并更新请求头"""

@@ -184,7 +184,12 @@ class ParserPlugin(Star):
             yield event.plain_result("网易云扩展解析器未启用，请在插件配置中开启。")
             return
 
-        qrcode = await parser.login_with_qrcode()
+        try:
+            qrcode = await parser.login_with_qrcode()
+        except Exception as e:
+            yield event.plain_result(f"获取网易云登录二维码失败: {e}")
+            return
+
         yield event.chain_result([Image.fromBytes(qrcode)])
         async for msg in parser.check_qr_state():
             yield event.plain_result(msg)

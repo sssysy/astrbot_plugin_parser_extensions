@@ -156,31 +156,36 @@ class TelegramLogin:
         """阻塞等待扫码结果,以 async generator 形式 yield 提示文本。"""
         from telethon.errors import SessionPasswordNeededError
 
-        if self._qr is None:
+        my_qr = self._qr
+        if my_qr is None:
             yield "请先使用 tglogin 生成二维码"
             return
         try:
-            await self._qr.wait()
+            await my_qr.wait()
         except asyncio.TimeoutError:
-            self._qr = None
-            self._awaiting_2fa = False
-            yield "二维码已过期,请重新使用 tglogin 生成"
+            if self._qr is my_qr:
+                self._qr = None
+                self._awaiting_2fa = False
+                yield "二维码已过期,请重新使用 tglogin 生成"
             return
         except SessionPasswordNeededError:
-            # 保留状态,等待 2FA 指令
-            self._awaiting_2fa = True
-            yield "检测到两步验证(2FA),请使用指令: tglogin 2fa <密码> 完成登录"
+            if self._qr is my_qr:
+                # 保留状态,等待 2FA 指令
+                self._awaiting_2fa = True
+                yield "检测到两步验证(2FA),请使用指令: tglogin 2fa <密码> 完成登录"
             return
         except Exception as e:
+            if self._qr is my_qr:
+                self._qr = None
+                self._awaiting_2fa = False
+                yield f"登录失败: {e}"
+            return
+        if self._qr is my_qr:
+            me = await self.client.get_me()
             self._qr = None
             self._awaiting_2fa = False
-            yield f"登录失败: {e}"
-            return
-        me = await self.client.get_me()
-        self._qr = None
-        self._awaiting_2fa = False
-        username = getattr(me, "username", None) or getattr(me, "id", "")
-        yield f"登录成功 (@{username})"
+            username = getattr(me, "username", None) or getattr(me, "id", "")
+            yield f"登录成功 (@{username})"
 
     async def complete_2fa(self, password: str) -> str:
         """用 2FA 密码完成登录。"""
