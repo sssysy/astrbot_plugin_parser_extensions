@@ -1,5 +1,13 @@
 [
   {
+    "__template_key": "bilibili",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "video_quality": "64",
+    "video_codec": "auto"
+  },
+  {
     "__template_key": "telegram",
     "enable": true,
     "use_proxy": false,

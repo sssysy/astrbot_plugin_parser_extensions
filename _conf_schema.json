@@ -4,6 +4,76 @@
         "type": "template_list",
         "hint": "配置要追加或覆盖的解析器。没配置或未启用的解析器将不会被注入到原插件中。",
         "templates": {
+            "bilibili": {
+                "name": "B站解析器(覆盖原版)",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "hint": "若需使用代理，需确保原插件或本地配置了可用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies / SESSDATA",
+                        "hint": "可填完整 cookie 或裸 SESSDATA；也可用「登录B站」扫码获取",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "video_quality": {
+                        "description": "视频画质",
+                        "hint": "高画质可能需要登录",
+                        "type": "string",
+                        "options": [
+                            "16",
+                            "32",
+                            "64",
+                            "80",
+                            "112",
+                            "116",
+                            "120",
+                            "125",
+                            "126",
+                            "127"
+                        ],
+                        "labels": [
+                            "360P 流畅",
+                            "480P 清晰",
+                            "720P 高清",
+                            "1080P 高清",
+                            "1080P+ 高码率",
+                            "1080P60 高帧率",
+                            "4K 超清",
+                            "HDR 真彩",
+                            "杜比视界",
+                            "8K 超高清"
+                        ],
+                        "default": "64"
+                    },
+                    "video_codec": {
+                        "description": "视频编码偏好",
+                        "hint": "auto=按 AV1>HEVC>AVC 自动选；其余为指定编码（不可用时自动降级）",
+                        "type": "string",
+                        "options": [
+                            "auto",
+                            "av1",
+                            "hevc",
+                            "avc"
+                        ],
+                        "labels": [
+                            "自动(推荐)",
+                            "AV1",
+                            "HEVC/H.265",
+                            "AVC/H.264"
+                        ],
+                        "default": "auto"
+                    }
+                }
+            },
             "telegram": {
                 "name": "Telegram 解析器",
                 "items": {

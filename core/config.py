@@ -32,6 +32,8 @@ class ParserItem(ConfigNode):
     api_hash: str | None
     parse_original_image: bool | None
     auto_claim_vip: bool | None
+    video_quality: str | None
+    video_codec: str | None
 
     @property
     def name(self) -> str:
@@ -39,6 +41,7 @@ class ParserItem(ConfigNode):
 
 
 class ParserConfig(ConfigNodeContainer):
+    bilibili: ParserItem
     telegram: ParserItem
     magnet: ParserItem
     jmcomic: ParserItem
@@ -95,7 +98,29 @@ class PluginConfig(ConfigNode):
             except Exception:
                 pass
 
+        # 合并默认模板中缺失的解析器条目（老配置升级兼容）
+        self._merge_missing_templates()
+
         self.parser = ParserConfig(self.parsers_template)
+
+    def _merge_missing_templates(self) -> None:
+        """把 default_template.json 中新增的解析器条目补进已保存配置"""
+        defaults = self.load_parser_template(self.default_template_file)
+        if not defaults:
+            return
+        existing = {node.get("__template_key") for node in (self.parsers_template or [])}
+        added = [node for node in defaults if node.get("__template_key") not in existing]
+        if not added:
+            return
+        self.parsers_template.extend(added)
+        try:
+            self.save_config()
+            logger.info(
+                f"[ParserExt] 已补充新增解析器配置: "
+                f"{'、'.join(n.get('__template_key', '') for n in added)}"
+            )
+        except Exception:
+            pass
 
     @property
     def data_dir(self) -> Path:
