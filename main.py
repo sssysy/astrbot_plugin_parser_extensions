@@ -174,7 +174,7 @@ class ParserPlugin(Star):
         )
 
     @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.command("bili登录", alias={"bloginext", "extblogin"})
+    @filter.command("extblogin", alias={"ext登录b站"})
     async def login_bilibili(self, event: AstrMessageEvent):
         """扫码登录B站(SESSDATA, 无刷新令牌)。原插件「登录B站」指令同样走本解析器"""
         if not self.is_ready:
@@ -197,7 +197,7 @@ class ParserPlugin(Star):
             yield event.plain_result(msg)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.command("登录网易云", alias={"nlogin", "wylogin"})
+    @filter.command("extnlogin", alias={"ext登录网易云"})
     async def login_ncm(self, event: AstrMessageEvent):
         """扫码登录网易云音乐"""
         if not self.is_ready:
@@ -220,13 +220,13 @@ class ParserPlugin(Star):
             yield event.plain_result(msg)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.command("登录Telegram", alias={"tglogin", "登录tg"})
+    @filter.command("exttglogin", alias={"ext登录tg"})
     async def login_telegram(
         self,
         event: AstrMessageEvent,
         args: GreedyStr,
     ):
-        """登录 Telegram(扫码) 或完成 2FA: tglogin 2fa <密码>"""
+        """登录 Telegram(扫码) 或完成 2FA: exttglogin 2fa <密码>"""
         if not self.is_ready:
             yield event.plain_result(MISSING_DEP_MSG)
             return
@@ -243,11 +243,11 @@ class ParserPlugin(Star):
             return
         args_str = str(args).strip()
 
-        # 分支一: 2FA 子命令 (tglogin 2fa <密码>)
+        # 分支一: 2FA 子命令 (exttglogin 2fa <密码>)
         if args_str == "2fa" or args_str.startswith("2fa "):
             password = args_str[3:].strip()
             if not password:
-                yield event.plain_result("请提供 2FA 密码,用法: tglogin 2fa <密码>")
+                yield event.plain_result("请提供 2FA 密码,用法: exttglogin 2fa <密码>")
                 return
             result = await parser.login.complete_2fa(password)
             yield event.plain_result(result)
@@ -264,7 +264,7 @@ class ParserPlugin(Star):
             yield event.plain_result(msg)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.command("登录酷狗", alias={"kglogin", "酷狗登录"})
+    @filter.command("extkglogin", alias={"ext登录酷狗"})
     async def login_kugou(self, event: AstrMessageEvent):
         """扫码登录酷狗音乐"""
         if not self.is_ready:
@@ -287,7 +287,7 @@ class ParserPlugin(Star):
             yield event.plain_result(msg)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.command("酷狗领取vip", alias={"kgvip", "酷狗vip", "领取酷狗vip"})
+    @filter.command("ext酷狗领取vip")
     async def claim_kugou_vip(self, event: AstrMessageEvent):
         """手动领取酷狗概念版 1 天 VIP 并自动升级畅听 VIP（仅限当天，不可指定日期）"""
         if not self.is_ready:

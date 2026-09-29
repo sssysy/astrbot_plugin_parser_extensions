@@ -467,7 +467,7 @@ class KuGouParser(BaseParser):
     async def claim_vip(self) -> str:
         """手动领取酷狗概念版 1 天 VIP 并自动升级为畅听 VIP（固定获取当天一天）"""
         if not (self.cookiejar.cookies_str or (self.mycfg and getattr(self.mycfg, "cookies", None))):
-            return "未检测到酷狗登录信息，请先使用【/登录酷狗】进行扫码登录，或在配置中填写 Cookies。"
+            return "未检测到酷狗登录信息，请先使用【/extkglogin】进行扫码登录，或在配置中填写 Cookies。"
 
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         ts = int(time.time() * 1000)

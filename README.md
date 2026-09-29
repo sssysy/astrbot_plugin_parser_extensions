@@ -31,7 +31,7 @@ _✨ 万能解析器 (扩展包) ✨_
 | JMComic    | 链接(含短链) / jm 号               | ❌️  | ✅​  | ❌️  |       | 
 | 网易云音乐 (修复) | 链接(单曲链接/短链)               | ❌️  | ✅​  | ✅​  |   |
 | 酷狗音乐   | 链接(单曲链接/短链/mixsong)       | ❌️  | ✅​  | ✅​  | 请开启[概念版api](https://makcre.github.io/KuGouMusicApi/#/?id=%e4%bd%bf%e7%94%a8%e6%8e%a5%e5%8f%a3%e4%b8%ba%e6%a6%82%e5%bf%b5%e7%89%88) |
-| 小红书 (增强)  | 链接(含短链)/卡片                 | ✅​  | ✅​  | ❌️  |       |
+| 小红书 (增强)  | 链接(含短链)/卡片                 | ✅​  | ✅​  | ❌️  | 增加了无水印原图解析能力  |
 
 ---
 
@@ -47,12 +47,12 @@ _✨ 万能解析器 (扩展包) ✨_
 
 | 指令 | 别名 | 权限 | 说明 |
 | :---: | :---: | :---: | :---: |
-| `登录B站` | `blogin`, `登录b站` | ADMIN | 扫码登录B站（由本扩展接管） |
-| `bili登录` | `bloginext`, `extblogin` | ADMIN | 同上，扩展包自带入口 |
-| `登录网易云` | `nlogin`, `wylogin` | ADMIN | 弹出二维码扫码登录网易云音乐 |
-| `登录酷狗` | `kglogin`, `酷狗登录` | ADMIN | 弹出二维码扫码登录酷狗音乐 |
-| `酷狗领取vip` | `kgvip`, `酷狗vip`, `领取酷狗vip` | ADMIN | 手动领取酷狗概念版当天 1 天 VIP 并自动升级畅听 VIP |
-| `登录Telegram` | `tglogin`, `登录tg` | ADMIN | 弹出二维码扫码登录 Telegram；支持 `tglogin 2fa <密码>` |
+| `登录B站` | `blogin`, `登录b站` | ADMIN | 原插件指令，扫码登录B站（解析器由本扩展接管） |
+| `extblogin` | `ext登录b站` | ADMIN | 扫码登录B站（扩展包入口） |
+| `extnlogin` | `ext登录网易云` | ADMIN | 弹出二维码扫码登录网易云音乐 |
+| `extkglogin` | `ext登录酷狗` | ADMIN | 弹出二维码扫码登录酷狗音乐 |
+| `ext酷狗领取vip` | — | ADMIN | 手动领取酷狗概念版当天 1 天 VIP 并自动升级畅听 VIP |
+| `exttglogin` | `ext登录tg` | ADMIN | 弹出二维码扫码登录 Telegram；支持 `exttglogin 2fa <密码>` |
 | `ext重载` | `ext_reload` | ADMIN | 手动触发重新注入扩展解析器到原插件中 |
 
 > `开启解析`、`关闭解析` 等通用指令请直接使用原插件自带的官方指令。

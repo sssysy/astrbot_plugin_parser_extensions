@@ -283,7 +283,7 @@
                     },
                     "cookies": {
                         "description": "Cookies",
-                        "hint": "选填。使用指令【/登录酷狗】扫码后自动填充，也可手动填写",
+                        "hint": "选填。使用指令【/extkglogin】扫码后自动填充，也可手动填写",
                         "type": "text",
                         "default": ""
                     },
@@ -313,7 +313,7 @@
                             "蝰蛇超清",
                             "蝰蛇全景声"
                         ],
-                        "default": "high"
+                        "default": "flac"
                     },
                     "auto_claim_vip": {
                         "description": "解析前自动领取VIP",

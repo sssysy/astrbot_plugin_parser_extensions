@@ -158,7 +158,7 @@ class TelegramLogin:
 
         my_qr = self._qr
         if my_qr is None:
-            yield "请先使用 tglogin 生成二维码"
+            yield "请先使用 exttglogin 生成二维码"
             return
         try:
             await my_qr.wait()
@@ -166,13 +166,13 @@ class TelegramLogin:
             if self._qr is my_qr:
                 self._qr = None
                 self._awaiting_2fa = False
-                yield "二维码已过期,请重新使用 tglogin 生成"
+                yield "二维码已过期,请重新使用 exttglogin 生成"
             return
         except SessionPasswordNeededError:
             if self._qr is my_qr:
                 # 保留状态,等待 2FA 指令
                 self._awaiting_2fa = True
-                yield "检测到两步验证(2FA),请使用指令: tglogin 2fa <密码> 完成登录"
+                yield "检测到两步验证(2FA),请使用指令: exttglogin 2fa <密码> 完成登录"
             return
         except Exception as e:
             if self._qr is my_qr:
@@ -190,7 +190,7 @@ class TelegramLogin:
     async def complete_2fa(self, password: str) -> str:
         """用 2FA 密码完成登录。"""
         if not self._awaiting_2fa:
-            return "当前无需 2FA 验证,请先使用 tglogin 生成二维码并扫码"
+            return "当前无需 2FA 验证,请先使用 exttglogin 生成二维码并扫码"
         try:
             await self.client.sign_in(password=password)
         except Exception as e:
@@ -287,10 +287,10 @@ class TelegramParser(BaseParser):
             me = await client.get_me()
         except Exception as e:
             raise ParseException(
-                f"Telegram 未登录或 session 已失效,请使用 tglogin 登录: {e}"
+                f"Telegram 未登录或 session 已失效,请使用 exttglogin 登录: {e}"
             )
         if not me:
-            raise ParseException("Telegram 未登录,请使用 tglogin 登录")
+            raise ParseException("Telegram 未登录,请使用 exttglogin 登录")
         return client
 
     # ---------- URL 处理器 ----------
