@@ -41,7 +41,6 @@ class ParserItem(ConfigNode):
 
 
 class ParserConfig(ConfigNodeContainer):
-    bilibili: ParserItem
     telegram: ParserItem
     magnet: ParserItem
     jmcomic: ParserItem

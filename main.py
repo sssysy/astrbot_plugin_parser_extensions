@@ -16,7 +16,6 @@ from astrbot.core.star.star import star_registry
 from .core.config import PluginConfig
 from .core.parsers import (
     BaseParser,
-    BilibiliParser,
     JMComicParser,
     KuGouParser,
     MagnetParser,
@@ -28,7 +27,6 @@ from .core.parsers import (
 T = TypeVar("T", bound=BaseParser)
 
 PARSER_CLASSES: dict[str, type[BaseParser]] = {
-    "bilibili": BilibiliParser,
     "telegram": TelegramParser,
     "magnet": MagnetParser,
     "jmcomic": JMComicParser,
@@ -172,29 +170,6 @@ class ParserPlugin(Star):
         yield event.plain_result(
             f"扩展解析器重新注入成功！已挂载平台：{'、'.join(self.injected_parsers.keys())}"
         )
-
-    @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.command("extblogin", alias={"ext登录b站"})
-    async def login_bilibili(self, event: AstrMessageEvent):
-        """扫码登录B站(SESSDATA, 无刷新令牌)。原插件「登录B站」指令同样走本解析器"""
-        if not self.is_ready:
-            yield event.plain_result(MISSING_DEP_MSG)
-            return
-        try:
-            parser: BilibiliParser = self._get_parser_by_type(BilibiliParser)
-        except ValueError:
-            yield event.plain_result("B站扩展解析器未启用，请在插件配置中开启。")
-            return
-
-        try:
-            qrcode = await parser.credential.login_with_qrcode()
-        except Exception as e:
-            yield event.plain_result(f"获取B站登录二维码失败: {e}")
-            return
-
-        yield event.chain_result([Image.fromBytes(qrcode)])
-        async for msg in parser.credential.check_qr_state():
-            yield event.plain_result(msg)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("extnlogin", alias={"ext登录网易云"})
